@@ -28,4 +28,10 @@ RUN chown appuser:appgroup /app/auth-api
 
 USER appuser
 
+ENV JWT_SECRET=PRFT \
+    AUTH_API_PORT=8000 \
+    USERS_API_ADDRESS=http://users-api:8083
+
+EXPOSE 8000
+
 CMD ["./auth-api"]
