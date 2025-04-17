@@ -4,18 +4,20 @@ trigger:
       - master
   paths:
     include:
-      - auth-api/**
+      - frontend/**
 
 resources:
 - repo: self
 
 variables:
-  dockerRegistryServiceConnection: '9d3796ff-d15d-4283-a956-0090485fe9e3'
-  imageRepository: 'auth-api'
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: 'd46bdaaa-d6df-4ae0-8b73-9556ad335a42'
+  imageRepository: 'frontend'
   containerRegistry: 'taller1.azurecr.io'
-  dockerfilePath: '$(Build.SourcesDirectory)/auth-api/Dockerfile'
+  dockerfilePath: '$(Build.SourcesDirectory)/frontend/Dockerfile'
   tag: '$(Build.BuildId)'
 
+  # Agent VM image name
   vmImageName: 'ubuntu-latest'
 
 stages:
