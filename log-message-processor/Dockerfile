@@ -15,4 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+ENV REDIS_HOST=redis \
+    REDIS_PORT=6379 \
+    REDIS_CHANNEL=log_channel \
+
 CMD [ "python3", "main.py" ]
