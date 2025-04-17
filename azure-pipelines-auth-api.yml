@@ -1,0 +1,35 @@
+trigger:
+  paths:
+    include:
+      - auth-api/**
+
+resources:
+- repo: self
+
+variables:
+  dockerRegistryServiceConnection: '9d3796ff-d15d-4283-a956-0090485fe9e3'
+  imageRepository: 'auth-api'
+  containerRegistry: 'taller1.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/auth-api/Dockerfile'
+  tag: '$(Build.BuildId)'
+
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build and push an image to container registry
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
