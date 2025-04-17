@@ -10,4 +10,12 @@ RUN npm install
 
 COPY . .
 
+ENV TODO_API_PORT=8082 \
+    JWT_SECRET=PRFT \
+    REDIS_HOST=redis \
+    REDIS_PORT=6379 \
+    REDIS_CHANNEL=log_channel
+
+EXPOSE 8082
+
 CMD ["npm", "start"]
