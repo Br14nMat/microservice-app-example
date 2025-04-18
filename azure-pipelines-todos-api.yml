@@ -37,3 +37,4 @@ stages:
         tags: |
           $(tag)
           latest
+
