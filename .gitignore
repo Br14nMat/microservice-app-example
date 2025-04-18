@@ -1,2 +1,2 @@
-.terraform
-infra/.terraform
+.terraform/
+infra/.terraform/
