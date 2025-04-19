@@ -1,76 +1,12 @@
-trigger:
-  branches:
-    include:
-      - master
-  paths:
-    include:
-      - infra/*
-      - azure-pipelines-auth-api.yml
-      - azure-pipelines-frontend.yml
-      - azure-pipelines-log-message-proce.yml
-      - azure-pipelines-todos-api.yml
-      - azure-pipelines-users-api.yml
-
-resources:
-  pipelines:
-  - pipeline: auth_api
-    source: azure-pipelines-auth-api
-    trigger: 
-      branches:
-        include:
-          - master
-  - pipeline: frontend
-    source: azure-pipelines-frontend
-    trigger:
-      branches:
-        include:
-          - master
-  - pipeline: log_processor
-    source: azure-pipelines-log-message-proce
-    trigger:
-      branches:
-        include:
-          - master
-  - pipeline: todos_api
-    source: azure-pipelines-todos-api
-    trigger:
-      branches:
-        include:
-          - master
-  - pipeline: users_api
-    source: azure-pipelines-users-api
-    trigger:
-      branches:
-        include:
-          - master
-
 variables:
   TERRAFORM_VERSION: '1.5.5'
-  AZURE_SUBSCRIPTION: 'fab7526b-56a5-4c43-9ba1-85eb890d86d5'
+  AZURE_SUBSCRIPTION: 'fab7526b-56a5-4c43-9ba1-85eb890d86d5' # Only for reference
   RESOURCE_GROUP: 'taller1'
   CONTAINERAPPS_ENVIRONMENT: 'microservices-env'
 
 stages:
-- stage: Validate_Changes
-  displayName: 'Validar Cambios'
-  jobs:
-  - job: Check_Changes
-    displayName: 'Verificar cambios necesarios'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - checkout: none
-    - script: |
-        echo "Pipeline triggered by changes in:"
-        echo "Build.SourceBranch: $(Build.SourceBranch)"
-        echo "Build.SourceVersionMessage: $(Build.SourceVersionMessage)"
-        echo "Build.Reason: $(Build.Reason)"
-      displayName: 'Mostrar información del trigger'
-
 - stage: Destroy_Existing
   displayName: 'Eliminar recursos existentes'
-  dependsOn: Validate_Changes
-  condition: and(succeeded(), eq(variables['Build.Reason'], 'ResourceTrigger'))
   jobs:
   - job: Destroy
     displayName: 'Eliminar Container Apps'
@@ -80,11 +16,10 @@ stages:
     - task: AzureCLI@2
       displayName: 'Eliminar Container Apps'
       inputs:
-        azureSubscription: $(AZURE_SUBSCRIPTION)
+        azureSubscription: 'azure-terraform-connection' # Must match your service connection name
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          # Verificar si el entorno existe antes de eliminar
           if az containerapp env show -n $(CONTAINERAPPS_ENVIRONMENT) -g $(RESOURCE_GROUP) &>/dev/null; then
             echo "Eliminando Container Apps..."
             apps=$(az containerapp list --resource-group $(RESOURCE_GROUP) --query "[].name" -o tsv)
@@ -92,8 +27,6 @@ stages:
               echo "Eliminando $app..."
               az containerapp delete --name $app --resource-group $(RESOURCE_GROUP) --yes
             done
-          else
-            echo "Entorno no existe, no hay nada que eliminar"
           fi
 
 - stage: Deploy_Infra
@@ -106,10 +39,19 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
     - checkout: self
+    
+    # Either use the marketplace task (after installing extension):
     - task: TerraformInstaller@0
-      displayName: 'Instalar Terraform'
+      displayName: 'Install Terraform'
       inputs:
         terraformVersion: $(TERRAFORM_VERSION)
+        
+    # OR use manual installation (uncomment below):
+    # - script: |
+    #     wget https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+    #     unzip terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+    #     sudo mv terraform /usr/local/bin/
+    #   displayName: 'Install Terraform manually'
 
     - task: AzureCLI@2
       displayName: 'Login Azure'
@@ -117,13 +59,12 @@ stages:
         azureSubscription: 'azure-terraform-connection'
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
-        inlineScript: |
-          az account show
+        inlineScript: az account show
 
     - script: |
         cd infra
         terraform init -input=false
         terraform validate
-        terraform plan -out=tfplan -input=false
-        terraform apply -auto-approve -input=false tfplan
+        terraform plan -out=tfplan
+        terraform apply -auto-approve tfplan
       displayName: 'Terraform Init/Plan/Apply'
