@@ -114,7 +114,7 @@ stages:
     - task: AzureCLI@2
       displayName: 'Login Azure'
       inputs:
-        azureSubscription: $(AZURE_SUBSCRIPTION)
+        azureSubscription: 'azure-terraform-connection'
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
@@ -127,8 +127,3 @@ stages:
         terraform plan -out=tfplan -input=false
         terraform apply -auto-approve -input=false tfplan
       displayName: 'Terraform Init/Plan/Apply'
-      env:
-        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
-        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
-        ARM_TENANT_ID: $(ARM_TENANT_ID)
-        ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION)
