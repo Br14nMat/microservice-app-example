@@ -46,7 +46,6 @@ resources:
 
 variables:
   TERRAFORM_VERSION: '1.5.5'
-  AZURE_SUBSCRIPTION: 'fab7526b-56a5-4c43-9ba1-85eb890d86d5'
   RESOURCE_GROUP: 'taller1'
   CONTAINERAPPS_ENVIRONMENT: 'microservices-env'
 
@@ -80,7 +79,7 @@ stages:
     - task: AzureCLI@2
       displayName: 'Eliminar Container Apps'
       inputs:
-        azureSubscription: $(AZURE_SUBSCRIPTION)
+        azureSubscription: 'azure-terraform-connection'
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
