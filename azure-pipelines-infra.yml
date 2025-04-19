@@ -1,6 +1,52 @@
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - infra/*
+      - azure-pipelines-auth-api.yml
+      - azure-pipelines-frontend.yml
+      - azure-pipelines-log-message-proce.yml
+      - azure-pipelines-todos-api.yml
+      - azure-pipelines-users-api.yml
+
+resources:
+  pipelines:
+  - pipeline: auth_api
+    source: azure-pipelines-auth-api
+    trigger: 
+      branches:
+        include:
+          - master
+  - pipeline: frontend
+    source: azure-pipelines-frontend
+    trigger:
+      branches:
+        include:
+          - master
+  - pipeline: log_processor
+    source: azure-pipelines-log-message-proce
+    trigger:
+      branches:
+        include:
+          - master
+  - pipeline: todos_api
+    source: azure-pipelines-todos-api
+    trigger:
+      branches:
+        include:
+          - master
+  - pipeline: users_api
+    source: azure-pipelines-users-api
+    trigger:
+      branches:
+        include:
+          - master
+
 variables:
-  TERRAFORM_VERSION: '1.5.5'
-  AZURE_SUBSCRIPTION: 'fab7526b-56a5-4c43-9ba1-85eb890d86d5' # Only for reference
+  TERRAFORM_VERSION: '1.5.5'  # Versión de Terraform a usar
+  AZURE_SUBSCRIPTION_ID: 'fab7526b-56a5-4c43-9ba1-85eb890d86d5'
   RESOURCE_GROUP: 'taller1'
   CONTAINERAPPS_ENVIRONMENT: 'microservices-env'
 
@@ -14,19 +60,15 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
     - task: AzureCLI@2
-      displayName: 'Eliminar Container Apps'
+      displayName: 'Eliminar apps existentes'
       inputs:
-        azureSubscription: 'azure-terraform-connection' # Must match your service connection name
+        azureSubscription: 'azure-terraform-connection'  # Nombre de tu service connection
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
           if az containerapp env show -n $(CONTAINERAPPS_ENVIRONMENT) -g $(RESOURCE_GROUP) &>/dev/null; then
             echo "Eliminando Container Apps..."
-            apps=$(az containerapp list --resource-group $(RESOURCE_GROUP) --query "[].name" -o tsv)
-            for app in $apps; do
-              echo "Eliminando $app..."
-              az containerapp delete --name $app --resource-group $(RESOURCE_GROUP) --yes
-            done
+            az containerapp list -g $(RESOURCE_GROUP) --query "[].name" -o tsv | xargs -I {} az containerapp delete -n {} -g $(RESOURCE_GROUP) --yes
           fi
 
 - stage: Deploy_Infra
@@ -34,37 +76,42 @@ stages:
   dependsOn: Destroy_Existing
   jobs:
   - job: Terraform
-    displayName: 'Ejecutar Terraform'
+    displayName: 'Ejecutar Terraform en Docker'
     pool:
       vmImage: 'ubuntu-latest'
     steps:
-    - checkout: self
+    - checkout: self  # Descargar el código del repositorio
     
-    # Either use the marketplace task (after installing extension):
-    - task: TerraformInstaller@0
-      displayName: 'Install Terraform'
-      inputs:
-        terraformVersion: $(TERRAFORM_VERSION)
-        
-    # OR use manual installation (uncomment below):
-    # - script: |
-    #     wget https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
-    #     unzip terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
-    #     sudo mv terraform /usr/local/bin/
-    #   displayName: 'Install Terraform manually'
-
+    # Autenticación en Azure
     - task: AzureCLI@2
-      displayName: 'Login Azure'
+      displayName: 'Configurar credenciales Azure'
       inputs:
         azureSubscription: 'azure-terraform-connection'
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
-        inlineScript: az account show
-
+        inlineScript: |
+          # Guardar credenciales para que Terraform en el contenedor pueda acceder
+          mkdir -p $(System.DefaultWorkingDirectory)/.azure
+          az account get-access-token > $(System.DefaultWorkingDirectory)/.azure/access-token.json
+          az account show > $(System.DefaultWorkingDirectory)/.azure/account.json
+    
+    # Ejecutar Terraform en contenedor Docker
+    - task: Docker@2
+      displayName: 'Inicializar y aplicar Terraform'
+      inputs:
+        containerRegistry: 'dockerHub'  # Usar el registry público
+        repository: 'hashicorp/terraform'
+        tag: $(TERRAFORM_VERSION)
+        command: 'run'
+        arguments: |
+          -v $(System.DefaultWorkingDirectory)/.azure:/root/.azure
+          -v $(System.DefaultWorkingDirectory)/infra:/infra
+          -w /infra
+          -e ARM_SUBSCRIPTION_ID=$(AZURE_SUBSCRIPTION_ID)
+          sh -c "terraform init && terraform validate && terraform plan && terraform apply -auto-approve"
+    
+    # Limpieza opcional
     - script: |
-        cd infra
-        terraform init -input=false
-        terraform validate
-        terraform plan -out=tfplan
-        terraform apply -auto-approve tfplan
-      displayName: 'Terraform Init/Plan/Apply'
+        rm -rf $(System.DefaultWorkingDirectory)/.azure
+      displayName: 'Limpiar credenciales temporales'
+      condition: always()
