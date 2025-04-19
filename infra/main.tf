@@ -95,6 +95,17 @@ locals {
         JWT_SECRET  = "PRFT"
         SERVER_PORT = "8083"
       }
+    },
+    # Patron 
+    redis = {
+      name      = "redis"
+      image     = "docker.io/redis:7.0"
+      port      = 6379
+      cpu       = 0.5
+      memory    = "1Gi"
+      min_replicas = 1
+      max_replicas = 1
+      env_vars = {}
     }
   }
 }
