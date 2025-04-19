@@ -45,14 +45,32 @@ resources:
           - master
 
 variables:
-  TERRAFORM_VERSION: '1.5.5'  # Versión de Terraform a usar
-  AZURE_SUBSCRIPTION_ID: 'fab7526b-56a5-4c43-9ba1-85eb890d86d5'
+  TERRAFORM_VERSION: '1.5.5'
+  AZURE_SUBSCRIPTION: 'fab7526b-56a5-4c43-9ba1-85eb890d86d5'
   RESOURCE_GROUP: 'taller1'
   CONTAINERAPPS_ENVIRONMENT: 'microservices-env'
 
 stages:
+- stage: Validate_Changes
+  displayName: 'Validar Cambios'
+  jobs:
+  - job: Check_Changes
+    displayName: 'Verificar cambios necesarios'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: none
+    - script: |
+        echo "Pipeline triggered by changes in:"
+        echo "Build.SourceBranch: $(Build.SourceBranch)"
+        echo "Build.SourceVersionMessage: $(Build.SourceVersionMessage)"
+        echo "Build.Reason: $(Build.Reason)"
+      displayName: 'Mostrar información del trigger'
+
 - stage: Destroy_Existing
   displayName: 'Eliminar recursos existentes'
+  dependsOn: Validate_Changes
+  condition: and(succeeded(), eq(variables['Build.Reason'], 'ResourceTrigger'))
   jobs:
   - job: Destroy
     displayName: 'Eliminar Container Apps'
@@ -60,15 +78,22 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
     - task: AzureCLI@2
-      displayName: 'Eliminar apps existentes'
+      displayName: 'Eliminar Container Apps'
       inputs:
-        azureSubscription: 'azure-terraform-connection'  # Nombre de tu service connection
+        azureSubscription: $(AZURE_SUBSCRIPTION)
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
+          # Verificar si el entorno existe antes de eliminar
           if az containerapp env show -n $(CONTAINERAPPS_ENVIRONMENT) -g $(RESOURCE_GROUP) &>/dev/null; then
             echo "Eliminando Container Apps..."
-            az containerapp list -g $(RESOURCE_GROUP) --query "[].name" -o tsv | xargs -I {} az containerapp delete -n {} -g $(RESOURCE_GROUP) --yes
+            apps=$(az containerapp list --resource-group $(RESOURCE_GROUP) --query "[].name" -o tsv)
+            for app in $apps; do
+              echo "Eliminando $app..."
+              az containerapp delete --name $app --resource-group $(RESOURCE_GROUP) --yes
+            done
+          else
+            echo "Entorno no existe, no hay nada que eliminar"
           fi
 
 - stage: Deploy_Infra
@@ -76,42 +101,29 @@ stages:
   dependsOn: Destroy_Existing
   jobs:
   - job: Terraform
-    displayName: 'Ejecutar Terraform en Docker'
+    displayName: 'Ejecutar Terraform'
     pool:
       vmImage: 'ubuntu-latest'
     steps:
-    - checkout: self  # Descargar el código del repositorio
-    
-    # Autenticación en Azure
+    - checkout: self
+    - task: TerraformInstaller@1
+      displayName: 'Instalar Terraform'
+      inputs:
+        terraformVersion: $(TERRAFORM_VERSION)
+
     - task: AzureCLI@2
-      displayName: 'Configurar credenciales Azure'
+      displayName: 'Login Azure'
       inputs:
         azureSubscription: 'azure-terraform-connection'
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          # Guardar credenciales para que Terraform en el contenedor pueda acceder
-          mkdir -p $(System.DefaultWorkingDirectory)/.azure
-          az account get-access-token > $(System.DefaultWorkingDirectory)/.azure/access-token.json
-          az account show > $(System.DefaultWorkingDirectory)/.azure/account.json
-    
-    # Ejecutar Terraform en contenedor Docker
-    - task: Docker@2
-      displayName: 'Inicializar y aplicar Terraform'
-      inputs:
-        containerRegistry: 'dockerHub'  # Usar el registry público
-        repository: 'hashicorp/terraform'
-        tag: $(TERRAFORM_VERSION)
-        command: 'run'
-        arguments: |
-          -v $(System.DefaultWorkingDirectory)/.azure:/root/.azure
-          -v $(System.DefaultWorkingDirectory)/infra:/infra
-          -w /infra
-          -e ARM_SUBSCRIPTION_ID=$(AZURE_SUBSCRIPTION_ID)
-          sh -c "terraform init && terraform validate && terraform plan && terraform apply -auto-approve"
-    
-    # Limpieza opcional
+          az account show
+
     - script: |
-        rm -rf $(System.DefaultWorkingDirectory)/.azure
-      displayName: 'Limpiar credenciales temporales'
-      condition: always()
+        cd infra
+        terraform init -input=false
+        terraform validate
+        terraform plan -out=tfplan -input=false
+        terraform apply -auto-approve -input=false tfplan
+      displayName: 'Terraform Init/Plan/Apply'
