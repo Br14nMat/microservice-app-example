@@ -1,4 +1,3 @@
-# Configuración del proveedor Azure
 provider "azurerm" {
   features {}
   subscription_id = "fab7526b-56a5-4c43-9ba1-85eb890d86d5"
@@ -15,38 +14,25 @@ data "azurerm_container_registry" "taller1" {
   resource_group_name = data.azurerm_resource_group.taller1.name
 }
 
-# Creación de entornos separados para Bulkhead
-resource "azurerm_container_app_environment" "auth_env" {
-  name                = "auth-env"
+resource "azurerm_container_app_environment" "auth_users_env" {
+  name                = "auth-users-env"  # Agrupa servicios relacionados con autenticación
   resource_group_name = data.azurerm_resource_group.taller1.name
   location            = data.azurerm_resource_group.taller1.location
 }
 
 resource "azurerm_container_app_environment" "frontend_env" {
-  name                = "frontend-env"
+  name                = "frontend-env"    # Entorno exclusivo para frontend
   resource_group_name = data.azurerm_resource_group.taller1.name
   location            = data.azurerm_resource_group.taller1.location
 }
 
-resource "azurerm_container_app_environment" "users_env" {
-  name                = "users-env"
+resource "azurerm_container_app_environment" "todos_processing_env" {
+  name                = "todos-processing-env"  # Agrupa todos + redis + processor
   resource_group_name = data.azurerm_resource_group.taller1.name
   location            = data.azurerm_resource_group.taller1.location
 }
 
-resource "azurerm_container_app_environment" "data_env" {
-  name                = "data-env"
-  resource_group_name = data.azurerm_resource_group.taller1.name
-  location            = data.azurerm_resource_group.taller1.location
-}
-
-resource "azurerm_container_app_environment" "processing_env" {
-  name                = "processing-env"
-  resource_group_name = data.azurerm_resource_group.taller1.name
-  location            = data.azurerm_resource_group.taller1.location
-}
-
-# Configuración común para todos los Container Apps
+# Configuración de los Container Apps
 locals {
   container_apps = {
     auth_api = {
@@ -57,11 +43,11 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 2
-      env_id    = azurerm_container_app_environment.auth_env.id
+      env_id    = azurerm_container_app_environment.auth_users_env.id
       env_vars = {
         JWT_SECRET       = "PRFT"
         AUTH_API_PORT    = "8081"
-        USERS_API_ADDRESS = "http://users-api.internal.users-env.svc.cluster.local:8083"
+        USERS_API_ADDRESS = "http://users-api.internal.auth-users-env.svc.cluster.local:8083"
       }
     }
     frontend = {
@@ -75,8 +61,8 @@ locals {
       env_id    = azurerm_container_app_environment.frontend_env.id
       env_vars = {
         PORT              = "8080"
-        AUTH_API_ADDRESS  = "http://auth-api.internal.auth-env.svc.cluster.local:8081"
-        TODOS_API_ADDRESS = "http://todos-api.internal.data-env.svc.cluster.local:8082"
+        AUTH_API_ADDRESS  = "http://auth-api.internal.auth-users-env.svc.cluster.local:8081"
+        TODOS_API_ADDRESS = "http://todos-api.internal.todos-processing-env.svc.cluster.local:8082"
       }
     }
     log_processor = {
@@ -87,9 +73,9 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 1
-      env_id    = azurerm_container_app_environment.processing_env.id
+      env_id    = azurerm_container_app_environment.todos_processing_env.id
       env_vars = {
-        REDIS_HOST    = "redis.internal.data-env.svc.cluster.local"
+        REDIS_HOST    = "redis.internal.todos-processing-env.svc.cluster.local"
         REDIS_PORT    = "6379"
         REDIS_CHANNEL = "log_channel"
       }
@@ -102,11 +88,11 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 2
-      env_id    = azurerm_container_app_environment.data_env.id
+      env_id    = azurerm_container_app_environment.todos_processing_env.id
       env_vars = {
         TODO_API_PORT = "8082"
         JWT_SECRET    = "PRFT"
-        REDIS_HOST    = "redis.internal.data-env.svc.cluster.local"
+        REDIS_HOST    = "redis.internal.todos-processing-env.svc.cluster.local"
         REDIS_PORT    = "6379"
         REDIS_CHANNEL = "log_channel"
       }
@@ -119,7 +105,7 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 2
-      env_id    = azurerm_container_app_environment.users_env.id
+      env_id    = azurerm_container_app_environment.auth_users_env.id
       env_vars = {
         JWT_SECRET  = "PRFT"
         SERVER_PORT = "8083"
@@ -133,7 +119,7 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 1
-      env_id    = azurerm_container_app_environment.data_env.id
+      env_id    = azurerm_container_app_environment.todos_processing_env.id
       env_vars = {}
     }
   }
