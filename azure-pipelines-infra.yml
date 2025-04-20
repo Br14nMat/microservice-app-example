@@ -50,25 +50,8 @@ variables:
   CONTAINERAPPS_ENVIRONMENT: 'microservices-env'
 
 stages:
-- stage: Validate_Changes
-  displayName: 'Validar Cambios'
-  jobs:
-  - job: Check_Changes
-    displayName: 'Verificar cambios necesarios'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - checkout: none
-    - script: |
-        echo "Pipeline triggered by changes in:"
-        echo "Build.SourceBranch: $(Build.SourceBranch)"
-        echo "Build.SourceVersionMessage: $(Build.SourceVersionMessage)"
-        echo "Build.Reason: $(Build.Reason)"
-      displayName: 'Mostrar información del trigger'
-
 - stage: Destroy_Existing
   displayName: 'Eliminar recursos existentes'
-  dependsOn: Validate_Changes
   condition: and(succeeded(), eq(variables['Build.Reason'], 'ResourceTrigger'))
   jobs:
   - job: Destroy
