@@ -52,7 +52,13 @@ variables:
 stages:
 - stage: Destroy_Existing
   displayName: 'Eliminar recursos existentes'
-  condition: and(succeeded(), eq(variables['Build.Reason'], 'ResourceTrigger'))
+  condition: |
+    or(
+      eq(variables['Build.Reason'], 'ResourceTrigger'),
+      eq(variables['Build.Reason'], 'IndividualCI'),
+      eq(variables['Build.Reason'], 'BatchedCI'),
+      eq(variables['Build.Reason'], 'Manual')
+    )
   jobs:
   - job: Destroy
     displayName: 'Eliminar Container Apps'
