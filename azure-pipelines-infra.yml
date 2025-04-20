@@ -45,32 +45,24 @@ resources:
           - master
 
 variables:
-  TERRAFORM_VERSION: '1.5.5'
-  AZURE_SUBSCRIPTION: 'fab7526b-56a5-4c43-9ba1-85eb890d86d5'
-  RESOURCE_GROUP: 'taller1'
-  CONTAINERAPPS_ENVIRONMENT: 'microservices-env'
+  - group: terraform-creds 
+  - name: TERRAFORM_VERSION
+    value: '1.5.5'
+  - name: RESOURCE_GROUP
+    value: 'taller1'
+  - name: CONTAINERAPPS_ENVIRONMENT
+    value: 'microservices-env'
 
 stages:
-- stage: Validate_Changes
-  displayName: 'Validar Cambios'
-  jobs:
-  - job: Check_Changes
-    displayName: 'Verificar cambios necesarios'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - checkout: none
-    - script: |
-        echo "Pipeline triggered by changes in:"
-        echo "Build.SourceBranch: $(Build.SourceBranch)"
-        echo "Build.SourceVersionMessage: $(Build.SourceVersionMessage)"
-        echo "Build.Reason: $(Build.Reason)"
-      displayName: 'Mostrar información del trigger'
-
 - stage: Destroy_Existing
   displayName: 'Eliminar recursos existentes'
-  dependsOn: Validate_Changes
-  condition: and(succeeded(), eq(variables['Build.Reason'], 'ResourceTrigger'))
+  condition: |
+    or(
+      eq(variables['Build.Reason'], 'ResourceTrigger'),
+      eq(variables['Build.Reason'], 'IndividualCI'),
+      eq(variables['Build.Reason'], 'BatchedCI'),
+      eq(variables['Build.Reason'], 'Manual')
+    )
   jobs:
   - job: Destroy
     displayName: 'Eliminar Container Apps'
@@ -80,11 +72,10 @@ stages:
     - task: AzureCLI@2
       displayName: 'Eliminar Container Apps'
       inputs:
-        azureSubscription: $(AZURE_SUBSCRIPTION)
+        azureSubscription: 'azure-terraform-connection'
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          # Verificar si el entorno existe antes de eliminar
           if az containerapp env show -n $(CONTAINERAPPS_ENVIRONMENT) -g $(RESOURCE_GROUP) &>/dev/null; then
             echo "Eliminando Container Apps..."
             apps=$(az containerapp list --resource-group $(RESOURCE_GROUP) --query "[].name" -o tsv)
@@ -106,19 +97,11 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
     - checkout: self
-    - task: TerraformInstaller@0
+    
+    - task: TerraformInstaller@1
       displayName: 'Instalar Terraform'
       inputs:
         terraformVersion: $(TERRAFORM_VERSION)
-
-    - task: AzureCLI@2
-      displayName: 'Login Azure'
-      inputs:
-        azureSubscription: 'azure-terraform-connection'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          az account show
 
     - script: |
         cd infra
@@ -127,3 +110,8 @@ stages:
         terraform plan -out=tfplan -input=false
         terraform apply -auto-approve -input=false tfplan
       displayName: 'Terraform Init/Plan/Apply'
+      env:
+        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+        ARM_TENANT_ID: $(ARM_TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
