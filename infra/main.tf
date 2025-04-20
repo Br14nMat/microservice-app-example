@@ -178,3 +178,4 @@
  
  output "users_api_url" {
    value = "http://${azurerm_container_app.app["users_api"].ingress[0].fqdn}:8083"
+ }
