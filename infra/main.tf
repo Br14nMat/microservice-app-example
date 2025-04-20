@@ -15,9 +15,33 @@ data "azurerm_container_registry" "taller1" {
   resource_group_name = data.azurerm_resource_group.taller1.name
 }
 
-# Creación del entorno de Container Apps
-resource "azurerm_container_app_environment" "microservices" {
-  name                = "microservices-env"
+# Creación de entornos separados para Bulkhead
+resource "azurerm_container_app_environment" "auth_env" {
+  name                = "auth-env"
+  resource_group_name = data.azurerm_resource_group.taller1.name
+  location            = data.azurerm_resource_group.taller1.location
+}
+
+resource "azurerm_container_app_environment" "frontend_env" {
+  name                = "frontend-env"
+  resource_group_name = data.azurerm_resource_group.taller1.name
+  location            = data.azurerm_resource_group.taller1.location
+}
+
+resource "azurerm_container_app_environment" "users_env" {
+  name                = "users-env"
+  resource_group_name = data.azurerm_resource_group.taller1.name
+  location            = data.azurerm_resource_group.taller1.location
+}
+
+resource "azurerm_container_app_environment" "data_env" {
+  name                = "data-env"
+  resource_group_name = data.azurerm_resource_group.taller1.name
+  location            = data.azurerm_resource_group.taller1.location
+}
+
+resource "azurerm_container_app_environment" "processing_env" {
+  name                = "processing-env"
   resource_group_name = data.azurerm_resource_group.taller1.name
   location            = data.azurerm_resource_group.taller1.location
 }
@@ -33,10 +57,11 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 2
+      env_id    = azurerm_container_app_environment.auth_env.id
       env_vars = {
         JWT_SECRET       = "PRFT"
         AUTH_API_PORT    = "8081"
-        USERS_API_ADDRESS = "http://users-api:8083" # Usamos nombre DNS interno
+        USERS_API_ADDRESS = "http://users-api.internal.users-env.svc.cluster.local:8083"
       }
     }
     frontend = {
@@ -47,22 +72,24 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 3
+      env_id    = azurerm_container_app_environment.frontend_env.id
       env_vars = {
         PORT              = "8080"
-        AUTH_API_ADDRESS  = "http://auth-api:8081" # DNS interno
-        TODOS_API_ADDRESS = "http://todos-api:8082" # DNS interno
+        AUTH_API_ADDRESS  = "http://auth-api.internal.auth-env.svc.cluster.local:8081"
+        TODOS_API_ADDRESS = "http://todos-api.internal.data-env.svc.cluster.local:8082"
       }
     }
     log_processor = {
       name      = "log-message-processor"
       image     = "${data.azurerm_container_registry.taller1.login_server}/log-message-processor:latest"
-      port      = null # No expuesto públicamente
+      port      = null
       cpu       = 0.5
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 1
+      env_id    = azurerm_container_app_environment.processing_env.id
       env_vars = {
-        REDIS_HOST    = "redis"
+        REDIS_HOST    = "redis.internal.data-env.svc.cluster.local"
         REDIS_PORT    = "6379"
         REDIS_CHANNEL = "log_channel"
       }
@@ -75,10 +102,11 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 2
+      env_id    = azurerm_container_app_environment.data_env.id
       env_vars = {
         TODO_API_PORT = "8082"
         JWT_SECRET    = "PRFT"
-        REDIS_HOST    = "redis"
+        REDIS_HOST    = "redis.internal.data-env.svc.cluster.local"
         REDIS_PORT    = "6379"
         REDIS_CHANNEL = "log_channel"
       }
@@ -91,12 +119,12 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 2
+      env_id    = azurerm_container_app_environment.users_env.id
       env_vars = {
         JWT_SECRET  = "PRFT"
         SERVER_PORT = "8083"
       }
-    },
-    # Patron 
+    }
     redis = {
       name      = "redis"
       image     = "docker.io/redis:7.0"
@@ -105,17 +133,18 @@ locals {
       memory    = "1Gi"
       min_replicas = 1
       max_replicas = 1
+      env_id    = azurerm_container_app_environment.data_env.id
       env_vars = {}
     }
   }
 }
 
-# Creación de los Container Apps usando un bucle
+# Creación de los Container Apps
 resource "azurerm_container_app" "app" {
   for_each = local.container_apps
 
   name                         = each.value.name
-  container_app_environment_id = azurerm_container_app_environment.microservices.id
+  container_app_environment_id = each.value.env_id
   resource_group_name          = data.azurerm_resource_group.taller1.name
   revision_mode                = "Single"
 
@@ -163,13 +192,13 @@ resource "azurerm_container_app" "app" {
   }
 }
 
-# Outputs útiles
+# Outputs
 output "frontend_url" {
   value = "http://${azurerm_container_app.app["frontend"].ingress[0].fqdn}"
 }
 
 output "auth_api_url" {
-  value = "http://${azurerm_container_app.app["auth_api"].ingress[0].fqdn}:8081"  # Cambiado a 8081
+  value = "http://${azurerm_container_app.app["auth_api"].ingress[0].fqdn}:8081"
 }
 
 output "todos_api_url" {
