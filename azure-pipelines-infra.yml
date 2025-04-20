@@ -45,9 +45,13 @@ resources:
           - master
 
 variables:
-  TERRAFORM_VERSION: '1.5.5'
-  RESOURCE_GROUP: 'taller1'
-  CONTAINERAPPS_ENVIRONMENT: 'microservices-env'
+  - group: terraform-creds 
+  - name: TERRAFORM_VERSION
+    value: '1.5.5'
+  - name: RESOURCE_GROUP
+    value: 'taller1'
+  - name: CONTAINERAPPS_ENVIRONMENT
+    value: 'microservices-env'
 
 stages:
 - stage: Destroy_Existing
@@ -72,7 +76,6 @@ stages:
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          # Verificar si el entorno existe antes de eliminar
           if az containerapp env show -n $(CONTAINERAPPS_ENVIRONMENT) -g $(RESOURCE_GROUP) &>/dev/null; then
             echo "Eliminando Container Apps..."
             apps=$(az containerapp list --resource-group $(RESOURCE_GROUP) --query "[].name" -o tsv)
@@ -94,24 +97,21 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
     - checkout: self
+    
     - task: TerraformInstaller@1
       displayName: 'Instalar Terraform'
       inputs:
         terraformVersion: $(TERRAFORM_VERSION)
 
-    - task: AzureCLI@2
-      displayName: 'Login Azure'
-      inputs:
-        azureSubscription: 'azure-terraform-connection'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          az account show
-
-    - task: TerraformCLI@1
-      displayName: 'terraform apply'
-      inputs:
-        command: apply
-        environmentServiceName: 'azure-terraform-connection'
-        # indicate az login should be run as part of this command
-        runAzLogin: true
+    - script: |
+        cd infra
+        terraform init -input=false
+        terraform validate
+        terraform plan -out=tfplan -input=false
+        terraform apply -auto-approve -input=false tfplan
+      displayName: 'Terraform Init/Plan/Apply'
+      env:
+        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+        ARM_TENANT_ID: $(ARM_TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
