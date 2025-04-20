@@ -108,10 +108,10 @@ stages:
         inlineScript: |
           az account show
 
-    - script: |
-        cd infra
-        terraform init -input=false
-        terraform validate
-        terraform plan -out=tfplan -input=false
-        terraform apply -auto-approve -input=false tfplan
-      displayName: 'Terraform Init/Plan/Apply'
+    - task: TerraformCLI@1
+      displayName: 'terraform apply'
+      inputs:
+        command: apply
+        environmentServiceName: 'azure-terraform-connection'
+        # indicate az login should be run as part of this command
+        runAzLogin: true
