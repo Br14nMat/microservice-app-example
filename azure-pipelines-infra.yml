@@ -107,7 +107,7 @@ stages:
         cd infra
         terraform init -input=false
         terraform validate
-        terraform plan -out=tfplan -input=false
+        terraform plan -out=tfplan -input=false -var="subscription_id=$(AZURE_SUBSCRIPTION_ID)"
         terraform apply -auto-approve -input=false tfplan
       displayName: 'Terraform Init/Plan/Apply'
       env:
