@@ -137,14 +137,6 @@ resource "azurerm_container_app" "app" {
       image  = each.value.image
       cpu    = each.value.cpu
       memory = each.value.memory
-      
-      # Límites de recursos (Bulkhead)
-      resources {
-        limits = {
-          cpu    = each.value.cpu + 0.25
-          memory = "${parseint(replace(each.value.memory, "Gi", "")) + 0.5}Gi"
-        }
-      }
 
       dynamic "env" {
         for_each = each.value.env_vars
