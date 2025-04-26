@@ -42,7 +42,7 @@ locals {
       env_vars = {
         JWT_SECRET       = "PRFT"
         AUTH_API_PORT    = "8081"
-        USERS_API_ADDRESS = "http://users-api:8083"
+        USERS_API_ADDRESS = "https://users-api.lemonmushroom-c310e1f1.eastus.azurecontainerapps.io"
       }
     }
     
@@ -71,8 +71,8 @@ locals {
       max_replicas = 3
       env_vars = {
         PORT              = "8080"
-        AUTH_API_ADDRESS  = "http://auth-api:8081"
-        TODOS_API_ADDRESS = "http://todos-api:8082"
+        AUTH_API_ADDRESS  = "https://auth-api.lemonmushroom-c310e1f1.eastus.azurecontainerapps.io"
+        TODOS_API_ADDRESS = "https://todos-api.lemonmushroom-c310e1f1.eastus.azurecontainerapps.io"
       }
     },
     
