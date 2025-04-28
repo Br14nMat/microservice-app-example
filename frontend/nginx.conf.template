@@ -32,7 +32,7 @@ http {
     }
 
     location /todos {
-      proxy_pass https://todos-api.lemonmushroom-c310e1f1.eastus.azurecontainerapps.io
+      proxy_pass https://todos-api.lemonmushroom-c310e1f1.eastus.azurecontainerapps.io/todos
       proxy_http_version 1.1;
 
       proxy_ssl_verify off;
