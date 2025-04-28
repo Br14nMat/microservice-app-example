@@ -6,13 +6,7 @@ trigger:
     include:
       - users-api/**
 
-pr:
-  branches:
-    include:
-      - master
-  paths:
-    include:
-      - users-api/**
+pr: none
 
 resources:
 - repo: self

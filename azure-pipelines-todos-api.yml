@@ -6,13 +6,7 @@ trigger:
     include:
       - todos-api/**
 
-pr:
-  branches:
-    include:
-      - master
-  paths:
-    include:
-      - todos-api/**
+pr: none
 
 resources:
 - repo: self

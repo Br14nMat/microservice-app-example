@@ -6,7 +6,7 @@ trigger:
     include:
       - auth-api/**
 
-pr:
+pr: none
   branches:
     include:
       - master
