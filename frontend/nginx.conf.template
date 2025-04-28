@@ -37,7 +37,7 @@ http {
 
       proxy_ssl_verify off;
       proxy_ssl_server_name on;
-      proxy_ssl_name todos-api.lemonmushroom-c310e1f1.eastus.azurecontainerapps.io
+      proxy_ssl_name todos-api.lemonmushroom-c310e1f1.eastus.azurecontainerapps.io;
 
       proxy_set_header Host todos-api.lemonmushroom-c310e1f1.eastus.azurecontainerapps.io;
       proxy_set_header X-Real-IP $remote_addr;
