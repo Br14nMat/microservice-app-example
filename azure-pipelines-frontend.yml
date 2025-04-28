@@ -6,6 +6,14 @@ trigger:
     include:
       - frontend/**
 
+pr:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - frontend/**
+
 resources:
 - repo: self
 

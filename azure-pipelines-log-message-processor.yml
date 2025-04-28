@@ -6,6 +6,14 @@ trigger:
     include:
       - log-message-processor/**
 
+pr:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - log-message-processor/**
+
 resources:
 - repo: self
 

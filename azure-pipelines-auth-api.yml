@@ -6,6 +6,14 @@ trigger:
     include:
       - auth-api/**
 
+pr:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - auth-api/**
+
 resources:
 - repo: self
 

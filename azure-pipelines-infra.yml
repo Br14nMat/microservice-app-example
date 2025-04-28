@@ -11,6 +11,19 @@ trigger:
       - azure-pipelines-todos-api.yml
       - azure-pipelines-users-api.yml
 
+pr:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - infra/*
+      - azure-pipelines-auth-api.yml
+      - azure-pipelines-frontend.yml
+      - azure-pipelines-log-message-proce.yml
+      - azure-pipelines-todos-api.yml
+      - azure-pipelines-users-api.yml
+
 resources:
   pipelines:
   - pipeline: auth_api
