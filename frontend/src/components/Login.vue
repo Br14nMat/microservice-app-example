@@ -7,7 +7,7 @@
                 <div class='row'>
                     <div class='col-md-3'></div>
                     <div class='col-md-6'>
-                        <h2>Please Login</h2>
+                        <h2>Cambio en vivo (boton amarillo)</h2>
                         <hr>
                     </div>
                 </div>
@@ -62,7 +62,7 @@
                 <div class='row' style='padding-top: 1rem'>
                     <div class='col-md-3'></div>
                     <div class='col-md-6'>
-                        <button type='submit' class='btn btn-danger'><i class='fa fa-sign-in'></i> Login</button>
+                        <button type='submit' class='btn btn-warning'><i class='fa fa-sign-in'></i> Login</button>
                     </div>
                 </div>
             </form>
